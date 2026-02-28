@@ -1,112 +1,95 @@
 from docx import Document
 from PIL import Image
-import numpy as np
 import pytesseract
 from pptx import Presentation
 import pandas as pd
 from openpyxl import load_workbook
 from pypdf import PdfReader
 from fastapi import UploadFile
-import io
+import zipfile
+import xml.etree.ElementTree as ET
 
 
-def parse_file(file_like: UploadFile) -> str:
-    """
-    Extract text content from various file types.
-    Optimized for large files to minimize memory usage.
-    Supports: PDF, DOCX, PPTX, PNG/JPG/JPEG, XLS/XLSX.
-    """
-    data: str = ""
-
-    # Validate filename
+async def parse_file(file_like: UploadFile) -> str:
     if not file_like.filename or "." not in file_like.filename:
-        print("El archivo no tiene extensión.")
-        return ""
+        raise IOError("Couldn't infer filetype, file with no extension.")
 
-    tipo = file_like.filename.rsplit(".", 1)[-1].lower()
+    data: str = ""
+    ft = file_like.filename.rsplit(".", 1)[-1].lower()
 
     try:
         # ---------------- PDF ----------------
-        if tipo == "pdf":
+        if ft == "pdf":
             reader = PdfReader(file_like.file)
             for pag in range(len(reader.pages)):
-                page = reader.pages[0]
+                page = reader.pages[pag]
                 text = page.extract_text()
-                data += text
+                if text:
+                    data += text + "\n"
+            file_like.file.seek(0)
 
         # ---------------- DOCX ----------------
-        elif tipo == "docx":
+        elif ft == "docx":
             document = Document(file_like.file)
-            paragraphs = [p.text for p in document.paragraphs if p.text.strip()]
-            # Extract tables
-            for table in document.tables:
-                for row in table.rows:
-                    row_text = "\t".join([cell.text for cell in row.cells])
-                    paragraphs.append(row_text)
+            paragraphs = [p.text for p in document.paragraphs
+                          if p.text.strip()]
+            paragraphs.extend(
+                "\t".join(cell.text for cell in row.cells)
+                for table in document.tables
+                for row in table.rows)
             data = "\n".join(paragraphs)
             file_like.file.seek(0)
 
         # ---------------- IMAGES ----------------
-        elif tipo in ["png", "jpg", "jpeg"]:
+        elif ft in ["png", "jpg", "jpeg"]:
             image = Image.open(file_like.file)
-            
-            # Resize if very large to reduce memory usage
             max_size = (1024, 1024)
             image.thumbnail(max_size, Image.Resampling.LANCZOS)
             data = pytesseract.image_to_string(image).strip()
             file_like.file.seek(0)
 
         # ---------------- PPTX ----------------
-        elif tipo == "pptx":
+        elif ft == "pptx":
             data = extract_text_from_pptx(file_like.file)
             file_like.file.seek(0)
 
         # ---------------- EXCEL ----------------
-        elif tipo in ["xls", "xlsx"]:
-            # Try pandas read_excel in chunks to reduce memory usage
-            try:
-                excel_file = pd.ExcelFile(file_like.file)
-                output = io.StringIO()
-                for sheet_name in excel_file.sheet_names:
-                    for chunk in pd.read_excel(file_like.file, sheet_name=sheet_name, chunksize=1000):
-                        chunk.to_csv(output, index=False, header=False)
-                data = output.getvalue()
-            except Exception:
-                # Fallback for xlsx with openpyxl
-                wb = load_workbook(file_like.file, read_only=True)
-                dfs = []
-                for sheetname in wb.sheetnames:
-                    sheet = wb[sheetname]
-                    rows = list(sheet.values)
-                    if rows:
-                        df = pd.DataFrame(rows[1:], columns=rows[0])
-                        dfs.append(df)
-                if dfs:
-                    data = pd.concat(dfs).to_csv(index=False)
-                else:
-                    data = ""
+        elif ft in ["xls", "xlsx"]:
+            wb = load_workbook(file_like.file, read_only=True)
+            dfs = [
+                pd.DataFrame(rows[1:], columns=rows[0])
+                for sheetname in wb.sheetnames
+                for rows in [list(wb[sheetname].values)]
+                if rows
+            ]
+            if dfs:
+                data = pd.concat(dfs).to_csv(index=False)
+            else:
+                data = ""
+            file_like.file.seek(0)
+
+        # ------- OPENDOCUMENT (ODT, ODS, ODP) -------
+        elif ft in ["odt", "ods", "odp"]:
+            data = extract_odf_text(file_like.file)
             file_like.file.seek(0)
 
         else:
-            if is_binary(not file_like.file):
-                # ---------------- TXT ----------------
-                f = open(file_like.file)
-                data = f.read() 
+            if await is_text_file(file_like):
+                content = await file_like.read()
+                data = content.decode('utf-8', errors='ignore')
+                await file_like.seek(0)
             else:
-                print(f"Error al procesar el archivo: {e}")
-            
+                print(f"Error: {file_like.filename} binary files"
+                      "are not supported.")
 
     except Exception as e:
-        print(f"Error al procesar el archivo: {e}")
+        print(f"There was an error when processing the file: {e}")
         data = ""
 
     return data.strip()
 
 
 def extract_text_from_pptx(file_like) -> str:
-    """
-    Extract text from a PPTX file-like object safely.
-    """
     presentation = Presentation(file_like)
     extracted_text: str = ""
 
@@ -118,11 +101,31 @@ def extract_text_from_pptx(file_like) -> str:
 
     return extracted_text.strip()
 
-def is_binary(file_name):
-    try:
-        with open(file_name, 'tr') as check_file:  # try open file in text mode
-            check_file.read()
-            return False
-    except:  # if fail then file is non-text (binary)
-        return True
 
+async def is_text_file(file: UploadFile) -> bool:
+    try:
+        chunk = await file.read(1024)
+        await file.seek(0)
+        if not chunk:
+            return True
+        if b'\x00' in chunk:
+            return False
+        chunk.decode('utf-8')
+        return True
+    except UnicodeDecodeError:
+        return False
+
+
+def extract_odf_text(file_like) -> str:
+    text_parts = []
+    try:
+        with zipfile.ZipFile(file_like) as z:
+            content_xml = z.read("content.xml")
+            tree = ET.fromstring(content_xml)
+            for node in tree.iter():
+                if node.text and node.text.strip():
+                    text_parts.append(node.text.strip())
+        return "\n".join(text_parts)
+    except Exception as e:
+        print(f"OpenDocument file processing error: {e}")
+        return ""

@@ -42,6 +42,7 @@ async def startup():
                 content_type TEXT,
                 size INTEGER NOT NULL,
                 upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                file_plaintext TEXT,
                 extracted_data TEXT
             )
         """)
@@ -62,7 +63,7 @@ async def upload_file(
         raise HTTPException(400, "No file sent")
 
     try:
-        extracted_text = parse_file(file)
+        extracted_text = await parse_file(file)
     except Exception as e:
         raise HTTPException(500, f"Parsing error: {e}")
 
@@ -105,11 +106,11 @@ async def upload_file(
     try:
         await db.execute("""
             INSERT INTO files (original_filename, stored_filename,
-            content_type, size, extracted_data)
-            VALUES (?, ?, ?, ?, ?)
+            content_type, size, file_plaintext, extracted_data)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             file.filename, stored_name, file.content_type, file_size,
-            get_parsed_data(ai_response_text, False)))
+            extracted_text, get_parsed_data(ai_response_text, False)))
         await db.commit()
         cursor = await db.execute("SELECT last_insert_rowid()")
         row = await cursor.fetchone()
