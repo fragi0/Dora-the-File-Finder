@@ -24,7 +24,7 @@ export default function SearchBar(){
             </div> 
             <button 
             onClick={searchAction} 
-            className="rounded-3xl bg-gray-800 text-white px-6 py-2 hover:bg-blue-400 hover:text-gray-900 transition h-14 ml-6">
+            className="rounded-3xl bg-gray-800 text-white px-6 py-2 hover:bg-blue-400 hover:text-gray-900 transition h-14 ml-6 mt-52">
                 Search
                 </button>
         </div>
