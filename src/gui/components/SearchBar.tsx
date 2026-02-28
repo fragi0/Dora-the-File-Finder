@@ -5,13 +5,10 @@ import { useRouter } from "next/navigation";
 
 export default function SearchBar(){
     const [request, setRequest] = useState("");
-    const router = useRouter(); // nos va a servir para ir a la siguiente pagina
+    const router = useRouter(); 
 
     const searchAction = async () => {{
-       const response = await fetch(`http://localhost:8000/search?q=${request}`);
-       const data = await response.json();
-
-       router.push('/Visualizer?request=${request}') // mandamos la palabra a la carpeta
+       router.push('/Visualizer?request=${request}') 
     }};
 
     return(
@@ -25,7 +22,11 @@ export default function SearchBar(){
             onChange={(e) => setRequest(e.target.value)}
             />
             </div> 
-            <button onClick={searchAction} className="rounded-3xl bg-gray-800 text-white px-6 py-2 hover:bg-blue-400 hover:text-gray-900 transition h-14 ml-6">Search</button>
+            <button 
+            onClick={searchAction} 
+            className="rounded-3xl bg-gray-800 text-white px-6 py-2 hover:bg-blue-400 hover:text-gray-900 transition h-14 ml-6">
+                Search
+                </button>
         </div>
          
 
