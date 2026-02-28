@@ -19,8 +19,22 @@
   }
 }
 
+@theme {
+  --font-cascadia: 'Cascadia Mono', sans-serif;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* app/globals.css */
+.cursor {
+  animation: blink 0.5s linear infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }

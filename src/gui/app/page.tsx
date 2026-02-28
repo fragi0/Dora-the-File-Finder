@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
+import Typewriter from "@/components/Typewriter";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +50,7 @@ export default function Home() {
       <div className="absolute inset-0 bg-white/10 backdrop-blur-2xl"></div>
       
       <div className="flex flex-col relative items-center justify-center min-h-screen">
+        <Typewriter />
         <SearchBar />
         <button 
           onClick={handleUploadClick}
