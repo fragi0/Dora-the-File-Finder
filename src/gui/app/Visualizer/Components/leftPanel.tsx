@@ -1,68 +1,52 @@
 'use client';
 
-import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect } from 'react';
 
-interface FileData {
-    original_filename: string;
-    content_type: string;
-    upload_date: string;
+export interface FileData {
+  filename: string;
+  filetype: string;
+  path: string;       // no se muestra
+  upload_date: string;
 }
 
-export default function LeftPanel({ onFileSelect }: { onFileSelect: (file: FileData) => void }) {
-    const searchParams = useSearchParams();
-    const query = searchParams.get('request');
-    const [data, setData] = useState<FileData[]>([]);
-    const [loading, setLoading] = useState(false);
+interface Props {
+  items: FileData[];
+  selected: FileData | null;
+  onSelect: (f: FileData) => void;
+  query: string;
+}
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const response = await fetch(`http://localhost:8000/search?query=${query}`);
-                const result = await response.json();
-                
-                const finalData = Array.isArray(result) ? result : [];
-                
-                setData(finalData);
-                if (finalData.length > 0) onFileSelect(finalData[0]);
-            } catch (error) {
-                console.error("Error fetching data:", error);
-                setData([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+export default function LeftPanel({ items, selected, onSelect, query }: Props) {
+  useEffect(() => {
+    if (!selected && items.length > 0) onSelect(items[0]);
+  }, [items, selected, onSelect]);
 
-        if (query) fetchData();
-    }, [query, onFileSelect]);
+  if (!query) return <p className="text-sm text-slate-300">Escribe algo y busca.</p>;
 
-    return (
-        <div className="bg-gray-800 w-[300px] border-r border-slate-700 p-5 overflow-y-auto h-full flex flex-col gap-5">
-            {loading && <p className="text-white animate-pulse">Searching...</p>}
-
-            {!loading && data && data.length > 0 ? (
-                data.map((file) => (
-                    <div 
-                        key={file.original_filename} 
-                        onClick={() => onFileSelect(file)}
-                        className="cursor-pointer p-3 bg-slate-800 hover:bg-slate-700 transition-colors rounded-lg border border-transparent hover:border-slate-500"
-                    >
-                        <h2 className="text-white font-bold truncate">{file.original_filename}</h2>
-                        <h3 className="text-slate-400 text-xs">{file.content_type}</h3>
-                        <h3 className="text-slate-500 text-[10px] mt-1">{file.upload_date}</h3>
-                    </div>
-                ))
-            ) : (
-              
-                !loading && (
-                    <div className="bg-blue-200 p-4 rounded-md shadow-lg">
-                        <p className="text-gray-900 text-lg font-semibold leading-tight">
-                            We haven't been able to find the document you're looking for.
-                        </p>
-                    </div>
-                )
-            )}
-        </div>
-    );
+  return (
+    <div className="space-y-3 overflow-y-auto pr-1 h-full">
+      {items.map((file, i) => {
+        const isActive = selected && selected.path === file.path;
+        const fileUrl = `http://localhost:8000${file.path}`;
+        return (
+          <button
+            key={`${file.path}-${i}`}
+            onClick={() => onSelect(file)}
+            onDoubleClick={() => window.open(fileUrl, '_blank', 'noopener,noreferrer')}
+            className={`w-full text-left p-3 rounded-lg border ${
+              isActive ? 'border-blue-400 bg-blue-900/30' : 'border-gray-700 bg-gray-800/50'
+            } hover:border-blue-300 transition`}
+            title="Doble click para abrir en nueva pestaña"
+          >
+            <div className="text-sm font-semibold text-white">{file.filename}</div>
+            <div className="text-xs text-gray-400">{file.filetype}</div>
+            <div className="text-xs text-gray-500">{file.upload_date}</div>
+          </button>
+        );
+      })}
+      {items.length === 0 && (
+        <p className="text-sm text-slate-300">Sin resultados.</p>
+      )}
+    </div>
+  );
 }

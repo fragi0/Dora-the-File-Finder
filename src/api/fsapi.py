@@ -191,6 +191,11 @@ async def search_files(
 
         raw_tokens = res_tokens.text.strip()
         search_tokens = [t.strip() for t in raw_tokens.split(",") if t.strip()]
+        print("Debug0 \n")
+        print(query)
+        print("Debug1 \n")
+        print(search_tokens)
+        print("Fin debug")
 
     except Exception as e:
         raise HTTPException(500, f"Error occurred during tokenization "
