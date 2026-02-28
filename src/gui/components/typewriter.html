@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap" rel="stylesheet">
+
+<style>
+body {
+  background: #182028;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+}
+
+h1 {
+  font-size: 9vmin;
+  color: #ffffff;
+  text-align: left;
+  font-family: Lato, sans-serif;
+  font-weight: 700;
+  margin: 1rem 0 1rem 2rem;
+}
+
+
+@keyframes typing {
+
+  /* ---------- PDFs (0%–20%) ---------- */
+  0%, 4%   { content: ""; }
+  5%       { content: "P"; }
+  7%       { content: "PD"; }
+  9%       { content: "PDF"; }
+  11%      { content: "PDFs"; }
+  18%,20%  { content: ""; }
+
+  /* ---------- DOCX (20%–40%) ---------- */
+  20%,24%  { content: ""; }
+  25%      { content: "D"; }
+  27%      { content: "DO"; }
+  29%      { content: "DOC"; }
+  31%      { content: "DOCX"; }
+  38%,40%  { content: "DOCXs"; }
+
+  /* ---------- IMAGES (40%–60%) ---------- */
+  40%,44%  { content: ""; }
+  45%      { content: "I"; }
+  47%      { content: "IM"; }
+  49%      { content: "IMA"; }
+  51%      { content: "IMAG"; }
+  53%      { content: "IMAGE"; }
+  55%      { content: "IMAGES"; }
+  58%,60%  { content: ""; }
+
+  /* ---------- PPTX (60%–80%) ---------- */
+  60%,64%  { content: ""; }
+  65%      { content: "P"; }
+  67%      { content: "PP"; }
+  69%      { content: "PPT"; }
+  71%      { content: "PPTX"; }
+  78%,80%  { content: "PPTXs"; }
+
+  /* ---------- EXCELS (80%–100%) ---------- */
+  80%,84%  { content: ""; }
+  85%      { content: "E"; }
+  87%      { content: "EX"; }
+  89%      { content: "EXC"; }
+  91%      { content: "EXCE"; }
+  93%      { content: "EXCEL"; }
+  95%      { content: "EXCELs"; }
+  100%     { content: ""; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typewriter {
+  --caret: currentcolor;
+}
+
+.typewriter::before {
+  content: "";
+  animation: typing 13.5s infinite;
+}
+
+.typewriter::after {
+  content: "";
+  border-right: 1px solid var(--caret);
+  animation: blink 0.5s linear infinite;
+}
+
+.typewriter.thick::after {
+  border-right: 1ch solid var(--caret);
+}
+
+.typewriter.nocaret::after {
+  border-right: 0;
+}
+
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .typewriter::after {
+    animation: none;
+  }
+
+  @keyframes sequencePopup {
+    0%,20%   { content: "PDFs"; }
+    21%,40%  { content: "DOCX"; }
+    41%,60%  { content: "IMAGES"; }
+    61%,80%  { content: "PPTX"; }
+    81%,100% { content: "EXCELS"; }
+  }
+
+  .typewriter::before {
+    content: "PDFs";
+    animation: sequencePopup 13.5s linear infinite;
+  }
+}
+
+</style>
+</head>
+
+<body>
+
+<h1 aria-label="Manage your PDFs, DOCX, IMAGES, PPTX and EXCELS">
+  Manage your&nbsp;<span class="typewriter thick"></span>
+</h1>
+
+</body>
+</html>
