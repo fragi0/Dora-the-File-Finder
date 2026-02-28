@@ -18,7 +18,8 @@ export default function LeftPanel({ onFileSelect }: { onFileSelect: (file: FileD
         const fetchData = async () => {
             const response = await fetch(`http://localhost:8000/search?q=${query}`);
             const result = await response.json();
-            setData(result);
+            console.log(result);
+            setData(result || []);
             // Opcional: enfocar el primero al cargar
             if(result.length > 0) onFileSelect(result[0]);
         };
@@ -27,7 +28,7 @@ export default function LeftPanel({ onFileSelect }: { onFileSelect: (file: FileD
 
     return(
         <div style={{display: 'grid', gap: '20px', width: '300px', borderRight: '1px solid #334155', padding: '20px', overflowY: 'auto'}}>
-            {data.map((file) => (
+            {(data).map((file) => (
                 <div 
                     key={file.original_filename} 
                     onClick={() => onFileSelect(file)}

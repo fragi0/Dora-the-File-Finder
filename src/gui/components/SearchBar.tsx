@@ -8,7 +8,7 @@ export default function SearchBar(){
     const router = useRouter(); 
 
     const searchAction = async () => {{
-       router.push('/Visualizer?request=${request}') 
+       router.push('/Visualizer?request=${request}');
     }};
 
     return(
