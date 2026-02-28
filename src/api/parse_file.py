@@ -5,63 +5,84 @@ import pytesseract
 from pptx import Presentation
 import pandas as pd
 from openpyxl import load_workbook
-import tempfile
 import fitz  # PyMuPDF 
+from fastapi import UploadFile
 
 
-def parse_file(file_like, tipo: str):
-    data = None
+def parse_file(file_like: UploadFile) -> str:
+    """
+    Parse the content of a file based on its filename extension.
 
-    if tipo == "pdf":
-        # PyMuPDF
-        file_like.seek(0)
-        doc = fitz.open(stream=file_like.read(), filetype="pdf")
-        data = ""
-        for page in doc:
-            data += page.get_text()
+    Args:
+        file_like (UploadFile): FastAPI uploaded file.
 
-    elif tipo == "docx":
-        # python-docx file object
-        file_like.seek(0)
-        document = Document(file_like)
-        data = "\n".join([p.text for p in document.paragraphs])
+    Returns:
+        str: Extracted text from the file.
+    """
+    data: str = ""
 
-    elif tipo in ["png", "jpg", "jpeg"]:
-        file_like.seek(0)
-        image = Image.open(file_like)
-        data = pytesseract.image_to_string(image)
+    # Extract file type from UploadFile filename
+    if not file_like.filename or "." not in file_like.filename:
+        print("El archivo no tiene extensión.")
+        return ""
 
-    elif tipo == "pptx":
-        file_like.seek(0)
-        data = extract_text_from_pptx(file_like)
+    tipo = file_like.filename.rsplit(".", 1)[-1].lower()
 
-    elif tipo in ["xls", "xlsx"]:
-        file_like.seek(0)
-        # Use openpyxl in read-only 
-        wb = load_workbook(file_like, read_only=True)
-        data_frames = []
-        for sheetname in wb.sheetnames:
-            sheet = wb[sheetname]
-            # Convert sheet to list of dicts
-            rows = list(sheet.values)
-            if rows:
-                df = pd.DataFrame(rows[1:], columns=rows[0])
-                data_frames.append(df)
-        if data_frames:
-            data = pd.concat(data_frames).to_csv(index=False)
+    try:
+        if tipo == "pdf":
+            # PyMuPDF
+            contents = file_like.file.read()
+            doc = fitz.open(stream=contents, filetype="pdf")
+            for page in doc:
+                data += page.get_text()
+            file_like.file.seek(0)
+
+        elif tipo == "docx":
+            document = Document(file_like.file)
+            data = "\n".join([p.text for p in document.paragraphs])
+            file_like.file.seek(0)
+
+        elif tipo in ["png", "jpg", "jpeg"]:
+            image = Image.open(file_like.file)
+            data = pytesseract.image_to_string(image)
+            file_like.file.seek(0)
+
+        elif tipo == "pptx":
+            data = extract_text_from_pptx(file_like.file)
+            file_like.file.seek(0)
+
+        elif tipo in ["xls", "xlsx"]:
+            wb = load_workbook(file_like.file, read_only=True)
+            data_frames = []
+            for sheetname in wb.sheetnames:
+                sheet = wb[sheetname]
+                rows = list(sheet.values)
+                if rows:
+                    df = pd.DataFrame(rows[1:], columns=rows[0])
+                    data_frames.append(df)
+            if data_frames:
+                data = pd.concat(data_frames).to_csv(index=False)
+            else:
+                data = ""
+            file_like.file.seek(0)
+
         else:
+            print(f"Tipo de archivo '{tipo}' no se admite.")
             data = ""
 
-    else:
-        print("Este tipo no se admite en el sistema")
-        data = None
+    except Exception as e:
+        print(f"Error al procesar el archivo: {e}")
+        data = ""
 
     return data
 
 
-def extract_text_from_pptx(file_like):
+def extract_text_from_pptx(file_like) -> str:
+    """
+    Extract text from a PPTX file-like object.
+    """
     presentation = Presentation(file_like)
-    extracted_text = ""
+    extracted_text: str = ""
 
     for slide_number, slide in enumerate(presentation.slides):
         extracted_text += f"\nSlide {slide_number + 1}:\n"
