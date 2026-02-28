@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
+from fastapi.staticfiles import StaticFiles
 
 ai_client = genai.Client()
 
@@ -22,6 +23,7 @@ app.add_middleware(
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 DATABASE_PATH = "app.db"
 
 
@@ -194,9 +196,16 @@ async def search_files(
         raise HTTPException(500, f"Error occurred during tokenization "
                             f"of your search query: {e}")
 
+    answer_text = ""
+
+    response_data = {
+            "answer": answer_text
+            }
+
     if not search_tokens:
-        return {"answer": "No keywords could be extracted "
-                "from your search query."}
+        response_data["answer"] = ("No keywords could be extracted "
+                                   "from your search query.")
+        return response_data
 
     # WHERE (extracted_data LIKE '%A%' OR file_plaintext LIKE '%A%')
     # OR (extracted_data LIKE '%B%' OR file_plaintext LIKE '%B%')
@@ -208,8 +217,9 @@ async def search_files(
         params.extend([f"%{token}%", f"%{token}%"])
 
     where_clause = " OR ".join(conditions)
-    sql_query = ("SELECT original_filename, file_plaintext FROM files "
-                 f"WHERE {where_clause} ORDER BY upload_date DESC LIMIT 3")
+    sql_query = ("SELECT original_filename, stored_filename, content_type,"
+                 "upload_date, file_plaintext FROM files WHERE "
+                 f"{where_clause} ORDER BY upload_date DESC LIMIT 3")
 
     try:
         cursor = await db.execute(sql_query, params)
@@ -218,7 +228,8 @@ async def search_files(
         raise HTTPException(500, f"Data base error: {e}")
 
     if not resultados:
-        return {"answer": "No related documents found"}
+        response_data["answer"] = "No related documents found"
+        return response_data
 
     context_text = ""
     for row in resultados:
@@ -252,6 +263,19 @@ async def search_files(
     except Exception as e:
         raise HTTPException(500, f"Error generando la respuesta final: {e}")
 
-    return {
-        "answer": answer_text
-    }
+    for index, row in enumerate(resultados):
+        filename = row['original_filename']
+        filetype = (filename.rsplit(".", 1)[-1].lower()
+                    if "." in filename else "unknown")
+
+        source_key = f"source{index + 1}"
+
+        response_data[source_key] = {
+            "filename": filename,
+            "filetype": filetype,
+            "path": f"/uploads/{row['stored_filename']}",
+            "upload_date": row['upload_date']
+        }
+
+    response_data["answer"] = answer_text
+    return response_data
