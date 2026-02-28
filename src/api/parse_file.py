@@ -1,5 +1,4 @@
 from docx import Document
-from PIL import Image
 import pytesseract
 from pptx import Presentation
 import pandas as pd
@@ -7,14 +6,12 @@ from openpyxl import load_workbook
 import fitz  # PyMuPDF
 from fastapi import UploadFile
 import io
+import cv2
+import numpy as np
 
 
 def parse_file(file_like: UploadFile) -> str:
-    """
-    Extract text content from various file types.
-    Optimized for large files to minimize memory usage.
-    Supports: PDF, DOCX, PPTX, PNG/JPG/JPEG, XLS/XLSX.
-    """
+ 
     data: str = ""
 
     # Validate filename
@@ -27,7 +24,6 @@ def parse_file(file_like: UploadFile) -> str:
     try:
         # ---------------- PDF ----------------
         if tipo == "pdf":
-            # Open PDF directly
             doc = fitz.open(stream=file_like.file, filetype="pdf")
             for page in doc:
                 data += page.get_text()
@@ -37,7 +33,6 @@ def parse_file(file_like: UploadFile) -> str:
         elif tipo == "docx":
             document = Document(file_like.file)
             paragraphs = [p.text for p in document.paragraphs if p.text.strip()]
-            # Extract tables
             for table in document.tables:
                 for row in table.rows:
                     row_text = "\t".join([cell.text for cell in row.cells])
@@ -47,11 +42,14 @@ def parse_file(file_like: UploadFile) -> str:
 
         # ---------------- IMAGES ----------------
         elif tipo in ["png", "jpg", "jpeg"]:
-            image = Image.open(file_like.file)
-            # Resize large images to reduce memory usage during OCR
-            max_size = (2000, 2000)
-            image.thumbnail(max_size, Image.ANTIALIAS)
-            data = pytesseract.image_to_string(image).strip()
+            # Read raw bytes and convert to OpenCV image
+            file_bytes = np.frombuffer(file_like.file.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)  # preserves original quality
+            if image is not None:
+                data = pytesseract.image_to_string(image).strip()
+            else:
+                print("No se pudo leer la imagen.")
+                data = ""
             file_like.file.seek(0)
 
         # ---------------- PPTX ----------------
@@ -61,7 +59,6 @@ def parse_file(file_like: UploadFile) -> str:
 
         # ---------------- EXCEL ----------------
         elif tipo in ["xls", "xlsx"]:
-            # Try pandas read_excel in chunks to reduce memory usage
             try:
                 excel_file = pd.ExcelFile(file_like.file)
                 output = io.StringIO()
@@ -70,7 +67,6 @@ def parse_file(file_like: UploadFile) -> str:
                         chunk.to_csv(output, index=False, header=False)
                 data = output.getvalue()
             except Exception:
-                # Fallback for xlsx with openpyxl
                 wb = load_workbook(file_like.file, read_only=True)
                 dfs = []
                 for sheetname in wb.sheetnames:
@@ -97,9 +93,7 @@ def parse_file(file_like: UploadFile) -> str:
 
 
 def extract_text_from_pptx(file_like) -> str:
-    """
-    Extract text from a PPTX file-like object safely.
-    """
+
     presentation = Presentation(file_like)
     extracted_text: str = ""
 
