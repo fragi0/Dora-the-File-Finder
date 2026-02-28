@@ -10,15 +10,7 @@ from fastapi import UploadFile
 
 
 def parse_file(file_like: UploadFile) -> str:
-    """
-    Parse the content of a file based on its filename extension.
-
-    Args:
-        file_like (UploadFile): FastAPI uploaded file.
-
-    Returns:
-        str: Extracted text from the file.
-    """
+   
     data: str = ""
 
     # Extract file type from UploadFile filename
