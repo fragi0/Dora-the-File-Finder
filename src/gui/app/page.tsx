@@ -47,7 +47,7 @@ export default function Home() {
   return (
     <div className="relative w-full h-screen bg-cover bg-center" style={{ backgroundImage: "url('/imagenFondoDora.png')" }}>
       <div className="absolute inset-0 bg-white/10 backdrop-blur-2xl"></div>
-
+      
       <div className="flex flex-col relative items-center justify-center min-h-screen">
         <SearchBar />
         <button 
