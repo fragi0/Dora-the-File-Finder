@@ -179,7 +179,7 @@ async def search_files(
         "(exact or paraphrased from the query) "
         "that would match these categories. If you are unable to "
         "extract useful key terms from the query, "
-        "just answer with a single comma. "
+        "the keywords then should be the words in the query comma-separated. "
         "No markdown, no conversational text. \n\n"
         f"Query: {query}"
     )
