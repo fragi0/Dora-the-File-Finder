@@ -1,5 +1,6 @@
 from docx import Document
 from PIL import Image
+import numpy as np
 import pytesseract
 from pptx import Presentation
 import pandas as pd
@@ -48,9 +49,10 @@ def parse_file(file_like: UploadFile) -> str:
         # ---------------- IMAGES ----------------
         elif tipo in ["png", "jpg", "jpeg"]:
             image = Image.open(file_like.file)
-            # Resize large images to reduce memory usage during OCR
-            max_size = (2000, 2000)
-            image.thumbnail(max_size, Image.ANTIALIAS)
+            
+            # Resize if very large to reduce memory usage
+            max_size = (1024, 1024)
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
             data = pytesseract.image_to_string(image).strip()
             file_like.file.seek(0)
 
