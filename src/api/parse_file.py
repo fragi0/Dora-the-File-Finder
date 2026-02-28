@@ -5,7 +5,7 @@ import pytesseract
 from pptx import Presentation
 import pandas as pd
 from openpyxl import load_workbook
-import fitz  # PyMuPDF
+from pypdf import PdfReader
 from fastapi import UploadFile
 import io
 
@@ -28,11 +28,11 @@ def parse_file(file_like: UploadFile) -> str:
     try:
         # ---------------- PDF ----------------
         if tipo == "pdf":
-            # Open PDF directly
-            doc = fitz.open(stream=file_like.file, filetype="pdf")
-            for page in doc:
-                data += page.get_text()
-            file_like.file.seek(0)
+            reader = PdfReader(file_like.file)
+            for pag in range(len(reader.pages)):
+                page = reader.pages[0]
+                text = page.extract_text()
+                data += text
 
         # ---------------- DOCX ----------------
         elif tipo == "docx":
@@ -88,8 +88,13 @@ def parse_file(file_like: UploadFile) -> str:
             file_like.file.seek(0)
 
         else:
-            print(f"Tipo de archivo '{tipo}' no se admite.")
-            data = ""
+            if is_binary(not file_like.file):
+                # ---------------- TXT ----------------
+                f = open(file_like.file)
+                data = f.read() 
+            else:
+                print(f"Error al procesar el archivo: {e}")
+            
 
     except Exception as e:
         print(f"Error al procesar el archivo: {e}")
@@ -112,3 +117,12 @@ def extract_text_from_pptx(file_like) -> str:
                 extracted_text += shape.text.strip() + "\n"
 
     return extracted_text.strip()
+
+def is_binary(file_name):
+    try:
+        with open(file_name, 'tr') as check_file:  # try open file in text mode
+            check_file.read()
+            return False
+    except:  # if fail then file is non-text (binary)
+        return True
+
