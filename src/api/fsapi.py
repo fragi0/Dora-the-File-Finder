@@ -1,13 +1,13 @@
+import re
+import json
 import aiosqlite
 import secrets
 from parse_file import parse_file
 from pathlib import Path
-from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 
-# Asegúrate de ejecutar: AIzaSyBvszSQ6-aQU6D7TJLbAjaFYkal8sZX0Ro en tu terminal
 ai_client = genai.Client()
 
 app = FastAPI()
@@ -42,7 +42,7 @@ async def startup():
                 content_type TEXT,
                 size INTEGER NOT NULL,
                 upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ai_summary TEXT
+                extracted_data TEXT
             )
         """)
         await db.commit()
@@ -59,12 +59,12 @@ async def upload_file(
     db: aiosqlite.Connection = Depends(get_db)
 ):
     if not file:
-        raise HTTPException(400, "No se envió ningún archivo")
+        raise HTTPException(400, "No file sent")
 
     try:
         extracted_text = parse_file(file)
     except Exception as e:
-        raise HTTPException(500, f"Error al parsear el archivo: {e}")
+        raise HTTPException(500, f"Parsing error: {e}")
 
     await file.seek(0)
 
@@ -76,35 +76,40 @@ async def upload_file(
             while chunk := await file.read(1024 * 1024):
                 buffer.write(chunk)
     except Exception as e:
-        raise HTTPException(500, f"Error al guardar archivo: {e}")
+        raise HTTPException(500, f"Error saving file: {e}")
 
     file_size = file_path.stat().st_size
 
-    prompt_hardcodeado = "Analiza el siguiente texto y extrae las ideas principales:\n\n"
-    prompt_completo = f"{prompt_hardcodeado}{extracted_text}"
+    prompt = (
+        "Extract unique entities from the text below. "
+        'Output ONLY valid JSON with this exact structure: '
+        '{"times": [], "dates": [], "places": [], "names": [], '
+        '"keywords": []}. '
+        "Rules: 1. No duplicates. 2. Use full names. 3. 'keywords' must be a "
+        "comprehensive list of terms to help another LLM retrieve this text "
+        "later. "
+        "No markdown formatting, no conversational text. Text: \n\n"
+    ) + extracted_text
 
     try:
-        # Cambia el nombre del modelo si tienes uno específico en tu entorno
-        response = ai_client.models.generate_content(
+        response = await ai_client.aio.models.generate_content(
             model='gemma-3-27b-it',
-            contents=prompt_completo,
+            contents=prompt,
         )
         ai_response_text = response.text
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
-        raise HTTPException(500, f"Error al consultar la IA: {e}")
+        raise HTTPException(500, f"Error: LLM connection failed: {e}")
 
-    # 4. Guardar en Base de Datos
     try:
         await db.execute("""
             INSERT INTO files (original_filename, stored_filename,
-            content_type, size, upload_date, ai_summary)
-            VALUES (?, ?, ?, ?, ?, ?)
+            content_type, size, extracted_data)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             file.filename, stored_name, file.content_type, file_size,
-            datetime.now(timezone.utc), ai_response_text
-        ))
+            get_parsed_data(ai_response_text, False)))
         await db.commit()
         cursor = await db.execute("SELECT last_insert_rowid()")
         row = await cursor.fetchone()
@@ -112,14 +117,46 @@ async def upload_file(
     except aiosqlite.Error as e:
         if file_path.exists():
             file_path.unlink()
-        raise HTTPException(500, f"Error en base de datos: {e}")
+        raise HTTPException(500, f"Database error: {e}")
     finally:
         await file.close()
 
-    # 5. Devolver la respuesta al Frontend
     return {
         "id": file_id,
         "filename": file.filename,
-        "message": "Archivo procesado con éxito",
-        "ai_analysis": ai_response_text
-}
+        "message": "File successfully stored",
+        }
+
+
+def get_parsed_data(ai_response_text, tried):
+    raw_json = ai_response_text.strip()
+    if raw_json.startswith("```json"):
+        raw_json = raw_json[7:]
+    elif raw_json.startswith("```"):
+        raw_json = raw_json[3:]
+    if raw_json.endswith("```"):
+        raw_json = raw_json[:-3]
+    raw_json = raw_json.strip()
+
+    try:
+        parsed_data = json.loads(raw_json)
+
+        expected_keys = ["times", "dates", "places", "names", "keywords"]
+        for key in expected_keys:
+            if key not in parsed_data:
+                parsed_data[key] = []
+
+        return json.dumps(parsed_data)
+    except json.JSONDecodeError:
+        if not tried:
+            match = re.search(r'\{.*\}', ai_response_text, re.DOTALL)
+            if match:
+                return get_parsed_data(match.group(0), True)
+            else:
+                return get_parsed_data("", True)
+        else:
+            return json.dumps({
+                "times": [], "dates": [], "places": [], "names": [],
+                "keywords": [], "error": "Failed to parse LLM response",
+                "raw_text": raw_json
+            })
