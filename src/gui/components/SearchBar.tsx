@@ -11,8 +11,7 @@ export default function SearchBar(){
        const response = await fetch(`http://localhost:8000/search?q=${request}`);
        const data = await response.json();
 
-       a
-
+       router.push('/Visualizer?request=${request}') // mandamos la palabra a la carpeta
     }};
 
     return(
