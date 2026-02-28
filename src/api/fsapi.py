@@ -88,9 +88,9 @@ async def upload_file(
         '"keywords": []}. '
         "Rules: 1. No duplicates. 2. Use full names. 3. 'keywords' must be a "
         "comprehensive list of terms to help another LLM retrieve this text "
-        "later. "
+        "later. 4. 'dates' shoud always be in YYYY-MM-DD format. "
         "No markdown formatting, no conversational text. Text: \n\n"
-    ) + extracted_text
+        ) + extracted_text[:80000]
 
     try:
         response = await ai_client.aio.models.generate_content(
@@ -161,3 +161,97 @@ def get_parsed_data(ai_response_text, tried):
                 "keywords": [], "error": "Failed to parse LLM response",
                 "raw_text": raw_json
             })
+
+
+@app.get("/search")
+async def search_files(
+    query: str,
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    prompt_extract_tokens = (
+        "Extract key search terms from the user query for SQL LIKE matching. "
+        "Target files were previously indexed extracting "
+        "these specific entities: times, dates (strictly YYYY-MM-DD format), "
+        "places, full names, and general keywords. "
+        "Output ONLY a comma-separated list of terms "
+        "(exact or paraphrased from the query) "
+        "that would match these categories. If you are unable to "
+        "extract useful key terms from the query, "
+        "just answer with a single comma. "
+        "No markdown, no conversational text. \n\n"
+        f"Query: {query}"
+    )
+    try:
+        res_tokens = await ai_client.aio.models.generate_content(
+            model='gemma-3-12b-it',
+            contents=prompt_extract_tokens
+        )
+
+        raw_tokens = res_tokens.text.strip()
+        search_tokens = [t.strip() for t in raw_tokens.split(",") if t.strip()]
+
+    except Exception as e:
+        raise HTTPException(500, f"Error occurred during tokenization "
+                            f"of your search query: {e}")
+
+    if not search_tokens:
+        return {"answer": "No keywords could be extracted "
+                "from your search query."}
+
+    # WHERE (extracted_data LIKE '%A%' OR file_plaintext LIKE '%A%')
+    # OR (extracted_data LIKE '%B%' OR file_plaintext LIKE '%B%')
+
+    conditions = []
+    params = []
+    for token in search_tokens:
+        conditions.append("(extracted_data LIKE ? OR file_plaintext LIKE ?)")
+        params.extend([f"%{token}%", f"%{token}%"])
+
+    where_clause = " OR ".join(conditions)
+    sql_query = ("SELECT original_filename, file_plaintext FROM files "
+                 f"WHERE {where_clause} ORDER BY upload_date DESC LIMIT 3")
+
+    try:
+        cursor = await db.execute(sql_query, params)
+        resultados = await cursor.fetchall()
+    except aiosqlite.Error as e:
+        raise HTTPException(500, f"Data base error: {e}")
+
+    if not resultados:
+        return {"answer": "No related documents found"}
+
+    context_text = ""
+    for row in resultados:
+        texto_seguro = row['file_plaintext'][:40000]
+        context_text += (f"\n--- FILE: {row['original_filename']} ---\n"
+                         f"{texto_seguro}\n")
+
+    prompt_generate_answer = f"""
+        Answer the user's query in a friendly tone
+        using ONLY the provided files.
+
+        Rules:
+        1. Evaluate if each file is relevant to the query.
+        2. If relevant, explain why based strictly on its plaintext content.
+        3. STRICTLY IGNORE irrelevant files. Do not mention them at all.
+        4. If NONE of the files are relevant, politely explain
+        that the retrieved documents don't seem to match what
+        they are looking for, and ask them to reformulate the query.
+
+        Query: {query}
+
+        Files context:
+        {context_text}
+    """
+    try:
+        final_response = await ai_client.aio.models.generate_content(
+            model='gemma-3-27b-it',
+            contents=prompt_generate_answer
+        )
+        answer_text = final_response.text.strip()
+    except Exception as e:
+        raise HTTPException(500, f"Error generando la respuesta final: {e}")
+
+    return {
+        "answer": answer_text
+    }
