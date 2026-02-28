@@ -16,7 +16,7 @@ export default function LeftPanel({ onFileSelect }: { onFileSelect: (file: FileD
 
     useEffect(() => {
         const fetchData = async () => {
-            const response = await fetch(`http://localhost:8000/search?q=${query}`);
+            const response = await fetch(`http://localhost:8000/search?query=${query}`);
             const result = await response.json();
             console.log(result);
             setData(result || []);
