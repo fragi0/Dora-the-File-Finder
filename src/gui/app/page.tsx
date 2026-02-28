@@ -1,10 +1,10 @@
 'use client'; 
 
 import { useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 
 export default function Home() {
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
@@ -30,13 +30,13 @@ export default function Home() {
     <div className="relative w-full h-screen bg-cover bg-center" style={{ backgroundImage: "url('/imagenFondoDora.png')" }}>
       <div className="absolute inset-0 bg-white/10 backdrop-blur-2xl"></div>
 
-      <div className="relative flex items-center justify-center min-h-screen">
+      <div className="flex flex-col relative items-center justify-center min-h-screen">
         <SearchBar />
         <button 
           onClick={handleUploadClick} 
           className="rounded-3xl bg-gray-800 text-white px-6 py-2 hover:bg-blue-400 hover:text-gray-900 transition h-14 ml-6"
         >
-          Upload 
+          Upload File
         </button> 
 
         <input 
@@ -45,7 +45,7 @@ export default function Home() {
           onChange={handleFileChange} 
           className="hidden" 
         />
-      </div>
+      </div>,
     </div>
   );
 }
