@@ -223,16 +223,16 @@ async def search_files(
 
     try:
         cursor = await db.execute(sql_query, params)
-        resultados = await cursor.fetchall()
+        results = await cursor.fetchall()
     except aiosqlite.Error as e:
         raise HTTPException(500, f"Data base error: {e}")
 
-    if not resultados:
+    if not results:
         response_data["answer"] = "No related documents found"
         return response_data
 
     context_text = ""
-    for row in resultados:
+    for row in results:
         texto_seguro = row['file_plaintext'][:40000]
         context_text += (f"\n--- FILE: {row['original_filename']} ---\n"
                          f"{texto_seguro}\n")
@@ -263,7 +263,7 @@ async def search_files(
     except Exception as e:
         raise HTTPException(500, f"Error generando la respuesta final: {e}")
 
-    for index, row in enumerate(resultados):
+    for index, row in enumerate(results):
         filename = row['original_filename']
         filetype = (filename.rsplit(".", 1)[-1].lower()
                     if "." in filename else "unknown")
