@@ -5,9 +5,9 @@ It works on a Next.js client where the user can upload a file to the SQLite data
 
 ## Installation
 ### Requirements
-*npm
-*pip
-*Gemini API key (get it [here](https://aistudio.google.com/app/api-keys))
+* npm
+* pip
+* Gemini API key (get it [here](https://aistudio.google.com/app/api-keys))
 
 ### Installation Steps
 1. Clone the repo:
