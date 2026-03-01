@@ -46,13 +46,14 @@ export default function VisualizerPage() {
   return (
     <div className="min-h-screen bg-[#0D3659] text-white p-6 flex flex-col gap-6">
       {/* Search bar fija arriba con glow al escribir/focus */}
-      <div className="flex gap-3 items-center max-w-3xl mx-auto">
+      <div className="flex gap-3 items-center max-w-3xl mx-auto w-200">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && doSearch(query)}
           placeholder="Buscar..."
-          className={`flex-1 rounded-lg bg-gray-800 border border-gray-700 px-4 py-3 focus:outline-none focus:border-blue-400 shadow-lg transition ${
+          className={`flex-1 rounded-lg bg-gray-800 border border-gray-700 px-6 py-3 focus:outline-none focus:border-blue-400 shadow-lg transition w-280 ${
+      
             query ? 'shadow-[0_0_12px_rgba(59,130,246,0.35)]' : ''
           }`}
         />
