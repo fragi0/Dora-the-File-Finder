@@ -18,7 +18,7 @@ export default function SearchBar(){
               <input 
                 className="relative text-center justify-center w-250 focus:outline-none text-gray-700 mr-3.5" 
                 type="text" 
-                placeholder="Search a file..." 
+                placeholder="Ask about anything in your files..." 
                 value={request}
                 onChange={(e) => setRequest(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && searchAction()}
