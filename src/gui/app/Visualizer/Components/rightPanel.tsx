@@ -1,36 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
 import type { FileData } from './leftPanel';
 
-const DocViewer = dynamic(
-  () => import('@cyntler/react-doc-viewer').then((m) => m.default),
-  { ssr: false }
-);
-
-export default function RightPanel({ file }: { file: FileData | null }) {
+export default function RightPanel({ file, answer }: { file: FileData | null; answer?: string | null }) {
   const [mounted, setMounted] = useState(false);
-  const [renderers, setRenderers] = useState<any[]>([]);
-  const [textContent, setTextContent] = useState<string>('');
+  const [textContent, setTextContent] = useState('');
   const [textLoading, setTextLoading] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  // Cargar renderers una vez
+  // Carga texto si aplica
   useEffect(() => {
-    import('@cyntler/react-doc-viewer').then((m) => {
-      setRenderers(m.DocViewerRenderers || []);
-    });
-  }, []);
-
-  // Cargar TXT cuando aplica
-  useEffect(() => {
-    if (!file) {
-      setTextContent('');
-      return;
-    }
-    if (!isTxt(file)) {
+    if (!file || !isTextLike(file)) {
       setTextContent('');
       return;
     }
@@ -39,22 +21,22 @@ export default function RightPanel({ file }: { file: FileData | null }) {
     fetch(url)
       .then((r) => r.text())
       .then((t) => setTextContent(t))
-      .catch((e) => {
-        console.error('Error cargando txt', e);
-        setTextContent('No se pudo cargar el texto.');
-      })
+      .catch(() => setTextContent('No se pudo cargar el texto.'))
       .finally(() => setTextLoading(false));
   }, [file]);
-
-  const url = file ? getUrl(file) : '';
-  const docs = useMemo(
-    () => (file ? [{ uri: url, fileType: guessExt(file) }] : []),
-    [url, file]
-  );
 
   if (!mounted) return null;
 
   if (!file) {
+    if (answer) {
+      return (
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="rounded-lg border border-blue-400/40 bg-blue-900/20 px-4 py-3 text-sm text-blue-100">
+            {answer}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex-1 rounded-xl border border-gray-800 bg-gray-900/60 text-gray-300 flex items-center justify-center">
         Selecciona un archivo
@@ -62,13 +44,19 @@ export default function RightPanel({ file }: { file: FileData | null }) {
     );
   }
 
+  const url = getUrl(file);
   const isImage = isImg(file);
   const isPdf = isPdfType(file);
-  const isText = isTxt(file);
-  const isDocOffice = isOffice(file) || isOdf(file);
+  const isText = isTextLike(file);
 
   return (
     <div className="flex-1 flex flex-col gap-4">
+      {answer && (
+        <div className="rounded-lg border border-blue-400/40 bg-blue-900/20 px-4 py-3 text-sm text-blue-100">
+          {answer}
+        </div>
+      )}
+
       <div className="h-[420px] rounded-xl border border-gray-800 bg-black/60 overflow-hidden">
         {isImage ? (
           <img src={url} className="w-full h-full object-contain bg-gray-950" />
@@ -76,19 +64,8 @@ export default function RightPanel({ file }: { file: FileData | null }) {
           <div className="w-full h-full overflow-auto bg-gray-950 text-gray-200 p-3 font-mono text-sm whitespace-pre-wrap">
             {textLoading ? 'Cargando texto...' : textContent || 'Archivo vacío.'}
           </div>
-        ) : isPdf || isDocOffice ? (
-          renderers.length > 0 ? (
-            <DocViewer
-              documents={docs}
-              pluginRenderers={renderers}
-              style={{ width: '100%', height: '100%' }}
-              config={{ header: { disableHeader: true, disableFileName: true } }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              Cargando visor...
-            </div>
-          )
+        ) : isPdf ? (
+          <iframe src={url} className="w-full h-full border-0 bg-gray-950" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             Sin previsualización para este tipo ({file.filetype}).{' '}
@@ -117,23 +94,33 @@ export default function RightPanel({ file }: { file: FileData | null }) {
 function getUrl(file: FileData) {
   return `http://localhost:8000${file.path}`;
 }
+
 function guessExt(file: FileData) {
   const name = file.filename || '';
   const ext = name.includes('.') ? name.split('.').pop() || '' : '';
   return ext.toLowerCase();
 }
-function isTxt(file: FileData) {
-  return /text\/plain/i.test(file.filetype || '') || /\.txt$/i.test(file.filename || '');
+
+const TEXT_EXTS = new Set([
+  'txt','md','markdown','json','yaml','yml','xml','html','htm','css','scss','less',
+  'js','mjs','cjs','ts','tsx','jsx','c','cc','cpp','cxx','h','hh','hpp','rs','go',
+  'rb','py','r','php','pl','sh','bash','zsh','ksh','ps1','java','kt','kts','scala',
+  'sql','toml','ini','conf','cfg','log','csv','tsv'
+]);
+
+function isTextLike(file: FileData) {
+  const ct = (file.filetype || '').toLowerCase();
+  const ext = guessExt(file);
+  if (ct.startsWith('text/')) return true;
+  if (TEXT_EXTS.has(ext)) return true;
+  // Si no tenemos extensión conocida ni content-type text/*, asumimos no-text
+  return false;
 }
+
 function isImg(file: FileData) {
   return /(png|jpe?g|gif|webp|bmp|tiff)$/i.test(guessExt(file));
 }
+
 function isPdfType(file: FileData) {
   return /pdf/i.test(guessExt(file)) || /pdf/i.test(file.filetype || '');
-}
-function isOffice(file: FileData) {
-  return /(docx?|pptx?|xlsx?)$/i.test(guessExt(file));
-}
-function isOdf(file: FileData) {
-  return /(odt|ods|odp)$/i.test(guessExt(file));
 }

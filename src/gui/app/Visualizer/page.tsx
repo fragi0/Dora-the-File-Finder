@@ -12,6 +12,7 @@ export default function VisualizerPage() {
   const [query, setQuery] = useState(initial);
   const [results, setResults] = useState<FileData[]>([]);
   const [selected, setSelected] = useState<FileData | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const doSearch = async (q: string) => {
@@ -26,13 +27,16 @@ export default function VisualizerPage() {
         : Object.entries(data)
             .filter(([k]) => k.startsWith('source'))
             .map(([, v]) => v as FileData);
+
       setResults(files);
       setSelected(files[0] ?? null);
+      setAnswer(data?.answer ?? null);           // << guarda la respuesta del LLM
       router.replace(`/Visualizer?request=${encodeURIComponent(term)}`);
     } catch (e) {
       console.error('Error al buscar', e);
       setResults([]);
       setSelected(null);
+      setAnswer('Ha ocurrido un error. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +57,6 @@ export default function VisualizerPage() {
           onKeyDown={(e) => e.key === 'Enter' && doSearch(query)}
           placeholder="Buscar..."
           className={`flex-1 rounded-lg bg-gray-800 border border-gray-700 px-6 py-3 focus:outline-none focus:border-blue-400 shadow-lg transition w-280 ${
-      
             query ? 'shadow-[0_0_12px_rgba(59,130,246,0.35)]' : ''
           }`}
         />
@@ -71,7 +74,7 @@ export default function VisualizerPage() {
         <div className="w-80 min-w-[260px] max-w-[320px] rounded-xl border border-gray-800 bg-gray-900/70 p-3">
           <LeftPanel items={results} onSelect={setSelected} selected={selected} query={query} />
         </div>
-        <RightPanel file={selected} />
+        <RightPanel file={selected} answer={answer} />  {/* << pasa answer */}
       </div>
     </div>
   );

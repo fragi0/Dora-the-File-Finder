@@ -33,7 +33,7 @@ export default function TypewriterJS() {
 
     const timeout = setTimeout(() => {
       setSubIndex((prev) => prev + (reverse ? -1 : 1));
-    }, 500); // Velocidad de escritura (ajustable)
+    }, 300); // Velocidad de escritura (ajustable)
 
     return () => clearTimeout(timeout);
   }, [subIndex, index, reverse]);

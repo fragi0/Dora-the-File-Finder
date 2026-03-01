@@ -43,3 +43,15 @@ mkdir -p git && cd git/ && git clone https://github.com/fragi0/Dora-the-File-Fin
         ```
 
 4. Enjoy
+
+## Notices
+
+In some systems, the image parsing in the server side (FastAPI) might not work out of the box. In this cases, we recommend manually installing tesseract-ocr.
+
+Example for Ubuntu/Debian:
+
+```sh
+sudo apt install tesseract-ocr
+```
+
+

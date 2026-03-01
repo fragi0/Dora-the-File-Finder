@@ -8,7 +8,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from fastapi.staticfiles import StaticFiles
-
+from datetime import datetime
 ai_client = genai.Client()
 
 app = FastAPI()
@@ -68,7 +68,6 @@ async def upload_file(
         extracted_text = await parse_file(file)
     except Exception as e:
         raise HTTPException(500, f"Parsing error: {e}")
-
     await file.seek(0)
 
     stored_name = secure_filename(file.filename)
@@ -148,6 +147,11 @@ def get_parsed_data(ai_response_text, tried):
         for key in expected_keys:
             if key not in parsed_data:
                 parsed_data[key] = []
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H:%M:%S")
+        parsed_data["dates"].insert(0, date_str)
+        parsed_data["times"].insert(0, time_str)
 
         return json.dumps(parsed_data)
     except json.JSONDecodeError:
@@ -191,11 +195,6 @@ async def search_files(
 
         raw_tokens = res_tokens.text.strip()
         search_tokens = [t.strip() for t in raw_tokens.split(",") if t.strip()]
-        print("Debug0 \n")
-        print(query)
-        print("Debug1 \n")
-        print(search_tokens)
-        print("Fin debug")
 
     except Exception as e:
         raise HTTPException(500, f"Error occurred during tokenization "
@@ -253,6 +252,9 @@ async def search_files(
         4. If NONE of the files are relevant, politely explain
         that the retrieved documents don't seem to match what
         they are looking for, and ask them to reformulate the query.
+        5. The first value in the times and dates tables are the
+        upload time and date for the respective file, and the user might ask
+        in regard to them.
 
         Query: {query}
 
