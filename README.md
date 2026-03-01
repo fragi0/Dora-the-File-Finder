@@ -1,4 +1,4 @@
-#DORA THE FILE FINDER
+# DORA THE FILE FINDER
 This project is our solution for the Merlin Software's challenge at HAckUDC2026, a platform that gives you smart search of files you upload to it via LLM chatbot. 
 
 It works on a Next.js client where the user can upload a file to the SQLite database or input a query to retrieve files relevant to it.
