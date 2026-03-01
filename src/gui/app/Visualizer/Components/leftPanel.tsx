@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 export interface FileData {
   filename: string;
   filetype: string;
-  path: string;       // no se muestra
+  path: string;       
   upload_date: string;
 }
 

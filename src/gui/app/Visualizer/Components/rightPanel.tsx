@@ -10,7 +10,6 @@ export default function RightPanel({ file, answer }: { file: FileData | null; an
 
   useEffect(() => setMounted(true), []);
 
-  // Carga texto si aplica
   useEffect(() => {
     if (!file || !isTextLike(file)) {
       setTextContent('');
@@ -113,7 +112,6 @@ function isTextLike(file: FileData) {
   const ext = guessExt(file);
   if (ct.startsWith('text/')) return true;
   if (TEXT_EXTS.has(ext)) return true;
-  // Si no tenemos extensión conocida ni content-type text/*, asumimos no-text
   return false;
 }
 

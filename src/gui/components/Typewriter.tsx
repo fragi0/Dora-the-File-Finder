@@ -18,7 +18,6 @@ export default function TypewriterJS() {
   const [isPaused, setIsPaused] = useState(false);
   const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Limpiar timeout al desmontar
   useEffect(() => {
     return () => {
       if (pauseTimeoutRef.current) {
@@ -28,31 +27,26 @@ export default function TypewriterJS() {
   }, []);
 
   useEffect(() => {
-    // Si estamos en pausa, no hacemos nada
     if (isPaused) return;
 
-    // Si acabamos de escribir la palabra completa (y no estamos borrando)
     if (subIndex === words[index].length + 1 && !reverse) {
-      // Entrar en pausa antes de empezar a borrar
       setIsPaused(true);
       pauseTimeoutRef.current = setTimeout(() => {
         setReverse(true);
         setIsPaused(false);
-      }, 2000); // 3 segundos de cooldown
+      }, 2000); 
       return;
     }
 
-    // Si hemos borrado toda la palabra
     if (subIndex === 0 && reverse) {
       setReverse(false);
       setIndex((prev) => (prev + 1) % words.length);
       return;
     }
 
-    // Paso normal de escritura/borrado
     const timeout = setTimeout(() => {
       setSubIndex((prev) => prev + (reverse ? -1 : 1));
-    }, 100); // Velocidad de escritura (ajustable)
+    }, 100); 
 
     return () => clearTimeout(timeout);
   }, [subIndex, index, reverse, isPaused]);

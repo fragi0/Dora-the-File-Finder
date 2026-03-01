@@ -30,7 +30,7 @@ export default function VisualizerPage() {
 
       setResults(files);
       setSelected(files[0] ?? null);
-      setAnswer(data?.answer ?? null);           // << guarda la respuesta del LLM
+      setAnswer(data?.answer ?? null);    
       router.replace(`/Visualizer?request=${encodeURIComponent(term)}`);
     } catch (e) {
       console.error('Error al buscar', e);
@@ -49,7 +49,6 @@ export default function VisualizerPage() {
 
   return (
     <div className="min-h-screen bg-[#0D3659] text-white p-6 flex flex-col gap-6">
-      {/* Search bar fija arriba con glow al escribir/focus */}
       <div className="flex gap-3 items-center max-w-3xl mx-auto w-200">
         <input
           value={query}
@@ -74,7 +73,7 @@ export default function VisualizerPage() {
         <div className="w-80 min-w-[260px] max-w-[320px] rounded-xl border border-gray-800 bg-gray-900/70 p-3">
           <LeftPanel items={results} onSelect={setSelected} selected={selected} query={query} />
         </div>
-        <RightPanel file={selected} answer={answer} />  {/* << pasa answer */}
+        <RightPanel file={selected} answer={answer} />  
       </div>
     </div>
   );
